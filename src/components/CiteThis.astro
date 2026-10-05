@@ -1,0 +1,117 @@
+---
+/**
+ * "Cite this post" block.
+ *
+ * Generates a BibTeX entry (and a plain-text alternative) from the post's
+ * own frontmatter, so citations can never drift out of sync with the post.
+ * Adding `arxiv:` or `doi:` to the frontmatter upgrades the entry type
+ * automatically -- see src/lib/bibtex.ts.
+ */
+import type { CollectionEntry } from 'astro:content';
+import { toBibtex, toPlainCitation } from '../lib/bibtex';
+import { withBase } from '../lib/urls';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  author: string;
+}
+
+const { post, author } = Astro.props;
+const { data } = post;
+
+// Absolute URL of this post, including the `base` prefix. `base` is '/'
+// for a <user>.github.io repo and '/<repo>' for a project repo.
+const url = new URL(withBase(`/blog/${post.id}/`), Astro.site).href;
+
+const citeInput = {
+  title: data.title,
+  date: data.date,
+  url,
+  author,
+  arxiv: data.arxiv,
+  doi: data.doi,
+};
+
+const bibtex = toBibtex(citeInput);
+const plain = toPlainCitation(citeInput);
+---
+
+<section class="cite" aria-labelledby="cite-title">
+  <div class="cite__head">
+    <h2 class="cite__title" id="cite-title">Cite this post</h2>
+    <div class="cite__tabs" role="tablist" aria-label="Citation format">
+      <button class="cite__tab" type="button" role="tab" aria-selected="true" data-cite-tab="bibtex">
+        BibTeX
+      </button>
+      <button class="cite__tab" type="button" role="tab" aria-selected="false" data-cite-tab="plain">
+        Plain
+      </button>
+      <button class="copy-button" type="button" data-copy-target="cite-bibtex">Copy</button>
+    </div>
+  </div>
+
+  <pre class="cite__output" id="cite-bibtex" data-cite-panel="bibtex"><code>{bibtex}</code></pre>
+  <pre class="cite__output" id="cite-plain" data-cite-panel="plain" hidden><code>{plain}</code></pre>
+</section>
+
+<script>
+  // Tab switching between the two citation formats.
+  const root = document.querySelector<HTMLElement>('.cite');
+  if (root) {
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-cite-tab]'));
+
+    const show = (name: string) => {
+      for (const tab of tabs) {
+        const selected = tab.dataset.citeTab === name;
+        tab.setAttribute('aria-selected', String(selected));
+      }
+      for (const panel of root.querySelectorAll<HTMLElement>('[data-cite-panel]')) {
+        panel.hidden = panel.dataset.citePanel !== name;
+      }
+      // Keep the Copy button pointing at whichever panel is visible.
+      const copy = root.querySelector<HTMLButtonElement>('[data-copy-target]');
+      if (copy) copy.dataset.copyTarget = `cite-${name}`;
+    };
+
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => show(tab.dataset.citeTab ?? 'bibtex'));
+    }
+  }
+
+  // Copy to clipboard. Falls back to a hidden textarea + execCommand for
+  // browsers or contexts where the async Clipboard API is unavailable
+  // (notably http:// origins).
+  document.addEventListener('click', async (event) => {
+    const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-copy-target]');
+    if (!button) return;
+
+    const target = document.getElementById(button.dataset.copyTarget ?? '');
+    const text = target?.textContent?.trim();
+    if (!text) return;
+
+    const original = button.textContent;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const scratch = document.createElement('textarea');
+        scratch.value = text;
+        scratch.setAttribute('readonly', '');
+        scratch.style.position = 'fixed';
+        scratch.style.opacity = '0';
+        document.body.appendChild(scratch);
+        scratch.select();
+        document.execCommand('copy');
+        document.body.removeChild(scratch);
+      }
+      button.textContent = 'Copied';
+    } catch {
+      button.textContent = 'Press Ctrl+C';
+    }
+
+    // Restore the label after a beat.
+    setTimeout(() => {
+      button.textContent = original;
+    }, 1600);
+  });
+</script>

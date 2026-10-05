@@ -1,0 +1,52 @@
+---
+/**
+ * Base layout: the HTML shell shared by every page.
+ *
+ * It owns the <html> attributes and the page-level structure. Page-specific
+ * markup goes in <slot>.
+ */
+import BaseHead from '../components/BaseHead.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { SITE } from '../consts';
+
+interface Props {
+  title?: string | undefined;
+  description?: string | undefined;
+  /** Set on post pages for correct Open Graph type. */
+  type?: 'website' | 'article';
+  publishedTime?: Date | undefined;
+}
+
+const {
+  title,
+  description = SITE.description,
+  type = 'website',
+  publishedTime,
+} = Astro.props;
+
+// When a page supplies its own title, suffix it with the site name so browser
+// tabs and search results stay unambiguous.
+const pageTitle = title ? `${title} · ${SITE.title}` : `${SITE.title} — ${SITE.handle}`;
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <BaseHead
+      title={pageTitle}
+      description={description}
+      type={type}
+      publishedTime={publishedTime}
+      canonical={new URL(Astro.url.pathname, Astro.site)}
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <SiteHeader />
+    <main id="main">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

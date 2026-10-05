@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------------------
+# Builds the site and publishes it to GitHub Pages.
+#
+# One-time setup, in the GitHub UI:
+#   Settings -> Pages -> Build and deployment -> Source: "GitHub Actions"
+#
+# After that, every push to main deploys. The workflow also runs on demand
+# from the Actions tab ("Run workflow").
+#
+# Note: `site` and `base` are NOT set here. withastro/action reads them from
+# astro.config.mjs, which is the single source of truth.
+# ---------------------------------------------------------------------------
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Allows deploying from the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+# The minimum permissions needed to build and publish. `pages: write` and
+# `id-token: write` are required for the Pages deployment token.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deployments at once, and cancel a stale one if a newer commit
+# lands. Saves you from publishing an out-of-date build.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          # Caches node_modules, keyed on package-lock.json.
+          cache: npm
+
+      # `npm ci` installs exactly what the lockfile pins, and fails if the
+      # lockfile and package.json disagree. That makes CI reproducible in a way
+      # `npm install` is not.
+      - run: npm ci
+
+      # Builds the site into ./dist and uploads it as a Pages artifact.
+      - uses: withastro/action@v6
+        with:
+          path: .
+
+  deploy:
+    # Only publish if the build succeeded.
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

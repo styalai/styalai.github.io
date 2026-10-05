@@ -1,0 +1,46 @@
+---
+/**
+ * Small light/dark toggle.
+ *
+ * Responsibilities:
+ *   - read the theme that BaseHead.astro already applied to <html>
+ *   - flip it, persist the choice to localStorage
+ *   - announce the change with a `themechange` window event, so the D3 and
+ *     Plotly charts can recolour themselves without polling
+ *
+ * No framework is needed for this; a ~40 line script does the job.
+ */
+---
+
+<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch colour theme">
+  <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+  </svg>
+  <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4"></circle>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+  </svg>
+</button>
+
+<script>
+  // Astro bundles and deduplicates <script> tags, so this runs once per page
+  // even if the component were used more than once.
+  const STORAGE_KEY = 'theme';
+  const toggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+
+  toggle?.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Storage unavailable: the theme still applies for this page view.
+    }
+
+    // Charts listen for this to swap their colours.
+    window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
+  });
+</script>

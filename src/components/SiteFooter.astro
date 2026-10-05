@@ -1,0 +1,23 @@
+---
+/** Footer: copyright, feed link, and a note about what built the site. */
+import { SITE, RSS_PATH } from '../consts';
+import { withBase } from '../lib/urls';
+
+const year = new Date().getFullYear();
+
+// {year} {SITE.author} already needs a real space between the year and the
+// name. {year}{' '}{SITE.author} is the explicit form that is immune to
+// whitespace compression. Astro 7 defaults to compressHTML: 'jsx', which
+// strips the whitespace between inline expressions.
+---
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>&copy; {year}{' '}{SITE.author}</p>
+    <p>
+      <a href={withBase(RSS_PATH)}>RSS</a>
+      &nbsp;&middot;&nbsp; Built with{' '}
+      <a href="https://astro.build">Astro</a>
+    </p>
+  </div>
+</footer>

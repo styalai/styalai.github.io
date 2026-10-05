@@ -1,0 +1,87 @@
+---
+/**
+ * Everything that belongs in <head>: metadata, the theme bootstrap script,
+ * KaTeX's stylesheet, and the global stylesheet.
+ *
+ * Kept in its own component so the layout stays readable and so there is
+ * exactly one place to add a new <meta> tag.
+ */
+import { SITE, RSS_PATH } from '../consts';
+import { withBase } from '../lib/urls';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Absolute URL of this page. Falls back to the site root. */
+  canonical?: URL | undefined;
+  /** Set on post pages so search engines can avoid indexing duplicates. */
+  type?: 'website' | 'article';
+  publishedTime?: Date | undefined;
+}
+
+const { title, description, canonical, type = 'website', publishedTime } = Astro.props;
+
+// KaTeX's CSS is imported from node_modules, not a CDN. Astro bundles it (and
+// the KaTeX webfonts it references) into /_astro at build time, so it works
+// offline and on GitHub Pages without any external request.
+import 'katex/dist/katex.min.css';
+import '../styles/global.css';
+
+// `site` comes from astro.config.mjs. The || fallback keeps `npm run dev`
+// working even if you clear `site` out of the config.
+const siteUrl = Astro.site ?? new URL(SITE.url);
+const canonicalUrl = canonical ?? new URL(Astro.url.pathname, siteUrl);
+const rssUrl = new URL(withBase(RSS_PATH), siteUrl);
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalUrl} />
+<link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
+<link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href={rssUrl} />
+<link rel="sitemap" href={new URL('sitemap-index.xml', siteUrl)} />
+
+<meta name="author" content={SITE.author} />
+<meta name="generator" content={Astro.generator} />
+
+<!-- Open Graph / social previews -->
+<meta property="og:type" content={type} />
+<meta property="og:site_name" content={SITE.title} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonicalUrl} />
+{type === 'article' && publishedTime && (
+  <meta property="article:published_time" content={publishedTime.toISOString()} />
+)}
+<meta name="twitter:card" content="summary" />
+
+{/*
+  Theme bootstrap. This MUST be inline and run before first paint, otherwise a
+  dark-mode reader sees a white flash. It resolves the theme in this order:
+
+    1. localStorage['theme']  -- an explicit choice the reader made
+    2. the OS preference      -- follows the system setting by default
+    3. light                  -- last-resort fallback if storage is blocked
+
+  Keep it dependency-free and inline. Do not move it to a bundled <script>,
+  because those are deferred and would run too late.
+*/}
+<script is:inline>
+  (() => {
+    let theme = 'light';
+    try {
+      const stored = localStorage.getItem('theme');
+      if (stored === 'light' || stored === 'dark') {
+        theme = stored;
+      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        theme = 'dark';
+      }
+    } catch {
+      /* Private browsing can throw on localStorage. Fall back to light. */
+    }
+    document.documentElement.dataset.theme = theme;
+  })();
+</script>

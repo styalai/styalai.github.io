@@ -1,0 +1,40 @@
+---
+/**
+ * A figure with a numbered caption.
+ *
+ * Wraps anything: an <img>, a table, or one of the interactive charts.
+ *
+ * The number is an explicit prop rather than an automatic counter. Astro
+ * renders pages concurrently at build time, so an auto-incrementing counter
+ * would not reliably match reading order. Explicit numbers are deterministic
+ * and need no JavaScript -- just remember to bump them if you reorder
+ * figures in a post.
+ */
+interface Props {
+  /** 1-based figure number. */
+  n: number;
+  /** Caption text. Keep it a single sentence that stands alone. */
+  caption: string;
+  /** Remove the inner padding, for edge-to-edge content like charts. */
+  flush?: boolean;
+  class?: string;
+}
+
+const { n, caption, flush = false, class: className = '' } = Astro.props;
+const classes = ['fig', flush && 'fig--flush', className].filter(Boolean).join(' ');
+---
+
+<figure class={classes}>
+  <div class="fig__body">
+    <slot />
+  </div>
+  <figcaption class="fig__caption">
+    {/*
+      The {' '} is a real space that survives Astro's HTML whitespace
+      compression. Astro 7 defaults to compressHTML: 'jsx', which strips the
+      newline between two inline elements -- without it this renders as
+      "Figure 1.Training loss ...".
+    */}
+    <span class="fig__num">Figure {n}.</span>{' '}{caption}
+  </figcaption>
+</figure>

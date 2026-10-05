@@ -1,0 +1,35 @@
+---
+/**
+ * Figure 1 -- the D3 loss-curve chart.
+ *
+ * This component renders only an empty container. The chart itself is drawn by
+ * src/scripts/charts/d3-loss-curves.ts, which src/scripts/lazy-charts.ts
+ * imports dynamically once the container scrolls into view.
+ *
+ * To point this at different data, edit the `data` attribute and register the
+ * matching chart module in the LOADER map in lazy-charts.ts.
+ */
+import Figure from '../Figure.astro';
+
+interface Props {
+  /** 1-based figure number for the caption. */
+  n: number;
+  caption: string;
+}
+
+const { n, caption } = Astro.props;
+---
+
+<Figure n={n} caption={caption} flush>
+  {/* `data-chart` must match a key in the LOADER map in lazy-charts.ts. */}
+  <div class="chart" data-chart="d3-loss-curves">
+    <div class="chart__placeholder">Loading interactive chart…</div>
+  </div>
+</Figure>
+
+<script>
+  // Pulls in the single IntersectionObserver shared by every chart. Astro
+  // bundles and deduplicates <script> tags, so this import runs once no matter
+  // how many charts a post contains.
+  import '../../scripts/lazy-charts';
+</script>

@@ -1,0 +1,984 @@
+/* ==========================================================================
+   global.css -- the entire visual design of the site.
+
+   Structure:
+     1. Design tokens (colours, spacing, type scale)
+     2. Theme switching (light / dark)
+     3. Reset + base elements
+     4. Layout primitives
+     5. Header, toggle, footer
+     6. Homepage
+     7. Post: header, prose, TOC, tags
+     8. Figures, code blocks, KaTeX, citations
+     9. Charts (D3 + Plotly)
+    10. Motion (fade-in, smooth scrolling) + reduced-motion opt-out
+    11. Shiki dual light/dark code themes
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. DESIGN TOKENS
+   Declared on :root, then overridden in section 2 for dark mode.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Measure: the text column. ~680px is a comfortable reading width. */
+  --measure: 680px;
+  --gutter: clamp(1.15rem, 4vw, 2rem);
+
+  /* Type scale */
+  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  --text-base: 1.0625rem; /* 17px -- slightly larger than 16px for prose */
+  --leading-prose: 1.72;
+
+  /* Light theme */
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9; /* subtle fills: table of contents, code figures */
+  --bg-inset: #eef0f3;
+  --text: #191b1f;
+  --text-soft: #5c6572;
+  --text-faint: #8a929e;
+  --border: #e2e5ea;
+  --border-strong: #cfd4db;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-wash: rgba(37, 99, 235, 0.07);
+  --shadow: 0 1px 2px rgba(16, 20, 28, 0.05);
+
+  /* Chart palette, light mode. Kept in sync with the JS chart modules. */
+  --chart-1: #2563eb;
+  --chart-2: #d97706;
+  --chart-3: #059669;
+  --chart-grid: #e2e5ea;
+}
+
+/* --------------------------------------------------------------------------
+   2. THEME SWITCHING
+
+   There is no toggle class on <html>. The only source of truth is the
+   `data-theme` attribute, set before first paint by the inline script in
+   BaseHead.astro. Everything below keys off that attribute.
+
+   If you ever want to force one theme (e.g. for a print stylesheet), set
+   `data-theme` directly.
+   -------------------------------------------------------------------------- */
+[data-theme='dark'] {
+  --bg: #0f1116;
+  --bg-soft: #161a21;
+  --bg-inset: #1c212a;
+  --text: #e4e7ec;
+  --text-soft: #9aa4b2;
+  --text-faint: #7c8595;
+  --border: #262b34;
+  --border-strong: #39404b;
+  --accent: #7aa2f7;
+  --accent-hover: #9db8fd;
+  --accent-wash: rgba(122, 162, 247, 0.1);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  --chart-1: #7aa2f7;
+  --chart-2: #fbbf24;
+  --chart-3: #34d399;
+  --chart-grid: #262b34;
+}
+
+/* --------------------------------------------------------------------------
+   3. RESET + BASE
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth; /* section 10 overrides this for reduced motion */
+  scroll-padding-top: 1.5rem; /* keep headings clear of the viewport edge */
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Avoid a horizontal scrollbar if a wide code block or table overflows. */
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.25;
+  font-weight: 620;
+  letter-spacing: -0.011em;
+  color: var(--text);
+  /* Anchored headings should not hide under the top of the viewport. */
+  scroll-margin-top: 1.5rem;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+/* One consistent link treatment everywhere. */
+a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  border-radius: 2px;
+  /* Gentle hover: colour shift plus a faint wash. No movement, no jank. */
+  transition: color 0.18s ease, background-color 0.18s ease;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  background-color: var(--accent-wash);
+}
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Keyboard users get a skip link; it stays hidden until focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  padding: 0.6rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. LAYOUT PRIMITIVES
+   -------------------------------------------------------------------------- */
+.wrap {
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.wrap--wide {
+  max-width: 880px;
+}
+
+/* --------------------------------------------------------------------------
+   5. HEADER / TOGGLE / FOOTER
+   -------------------------------------------------------------------------- */
+.site-header {
+  padding-block: 2.1rem 1.1rem;
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.site-header__name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-header__name:hover {
+  color: var(--accent);
+  background-color: transparent;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background-color: var(--accent-wash);
+}
+
+.theme-toggle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Show the moon in light mode (i.e. "switch to dark"), sun in dark mode. */
+[data-theme='dark'] .theme-toggle .icon-sun {
+  display: block;
+}
+
+[data-theme='dark'] .theme-toggle .icon-moon {
+  display: none;
+}
+
+.theme-toggle .icon-sun {
+  display: none;
+}
+
+.site-footer {
+  margin-top: 4.5rem;
+  padding-block: 1.6rem 2.6rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.site-footer p {
+  margin: 0.25rem 0;
+}
+
+/* --------------------------------------------------------------------------
+   6. HOMEPAGE
+   -------------------------------------------------------------------------- */
+.intro__title {
+  margin: 0 0 0.7rem;
+  font-size: clamp(1.65rem, 5vw, 2.05rem);
+  letter-spacing: -0.02em;
+}
+
+.intro__lede {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 1.05rem;
+  max-width: 34em;
+}
+
+.section {
+  margin-top: 3.2rem;
+}
+
+.section__title {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* The "Writing" list: title on the left, month/year right-aligned. */
+.post-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.post-list__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.post-list__item:last-child {
+  border-bottom: 0;
+}
+
+.post-list__link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  min-width: 0; /* lets long titles shrink instead of pushing the date out */
+}
+
+.post-list__link:hover {
+  color: var(--accent);
+  background-color: transparent;
+}
+
+.post-list__meta {
+  flex: none;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.post-list__empty {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* Links row: inline chips that wrap on narrow screens. */
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.link-row__link {
+  display: inline-block;
+  padding: 0.34rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 0.18s ease, border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.link-row__link:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background-color: var(--accent-wash);
+}
+
+/* --------------------------------------------------------------------------
+   7. POST HEADER, TAGS, TABLE OF CONTENTS
+   -------------------------------------------------------------------------- */
+.post-header {
+  margin-bottom: 2.4rem;
+}
+
+.post-header__title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.7rem, 5.5vw, 2.2rem);
+  letter-spacing: -0.022em;
+}
+
+.post-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.post-header__meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  color: var(--border-strong);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tag {
+  padding: 0.14rem 0.5rem;
+  border-radius: 4px;
+  background-color: var(--bg-soft);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+}
+
+/* Table of contents. Inline box above the article body: it reads well on a
+   phone, where a fixed sidebar would eat the whole viewport. */
+.toc {
+  margin-bottom: 2.6rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-soft);
+  font-size: 0.875rem;
+}
+
+.toc__title {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.toc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toc__list .toc__list {
+  margin-left: 0.9rem;
+  border-left: 1px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.toc__link {
+  display: block;
+  padding-block: 0.16rem;
+  color: var(--text-soft);
+  text-decoration: none;
+}
+
+.toc__link:hover {
+  color: var(--accent);
+  background-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   8. PROSE, FIGURES, CODE, KATEX, CITATIONS
+   -------------------------------------------------------------------------- */
+.prose > * + * {
+  margin-top: 1.15em;
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  line-height: var(--leading-prose);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.35em;
+}
+
+.prose li + li {
+  margin-top: 0.35em;
+}
+
+.prose h2 {
+  margin-top: 2.5em;
+  margin-bottom: 0.55em;
+  font-size: 1.4rem;
+}
+
+.prose h3 {
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+  font-size: 1.14rem;
+}
+
+.prose h4 {
+  margin-top: 1.7em;
+  font-size: 1rem;
+}
+
+/* First heading sits closer to the top -- no double gap. */
+.prose > h2:first-child,
+.prose > h3:first-child {
+  margin-top: 0;
+}
+
+.prose blockquote {
+  margin-inline: 0;
+  padding: 0.1rem 0 0.1rem 1rem;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-soft);
+}
+
+.prose strong {
+  font-weight: 640;
+}
+
+.prose img {
+  border-radius: 6px;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  display: block;
+  overflow-x: auto;
+}
+
+.prose th,
+.prose td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+/* Figures with numbered captions. */
+.fig {
+  margin: 2.4rem 0;
+}
+
+.fig__body {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg);
+  padding: 1rem;
+  overflow: hidden; /* clips chart elements that overshoot on tiny screens */
+}
+
+.fig--flush .fig__body {
+  padding: 0;
+}
+
+.fig__caption {
+  margin-top: 0.7rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.fig__num {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Code. `prose pre` gets the box; inline `code` gets a chip. */
+.prose pre {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.prose :not(pre) > code {
+  padding: 0.13em 0.36em;
+  border-radius: 4px;
+  background-color: var(--bg-inset);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  word-break: break-word;
+}
+
+/* KaTeX display math can be wider than the column on a phone. */
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.15em;
+}
+
+.prose .katex {
+  font-size: 1.04em;
+}
+
+/* "Cite this post" block. */
+.cite {
+  margin-top: 3.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-soft);
+  overflow: hidden;
+}
+
+.cite__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cite__title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.cite__tabs {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.cite__tab {
+  padding: 0.22rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-soft);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color 0.18s ease, background-color 0.18s ease;
+}
+
+.cite__tab:hover {
+  color: var(--accent);
+  background-color: var(--accent-wash);
+}
+
+.cite__tab[aria-selected='true'] {
+  color: var(--text);
+  background-color: var(--bg-inset);
+  border-color: var(--border);
+}
+
+.cite__output {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-soft);
+  white-space: pre;
+}
+
+.cite__output[hidden] {
+  display: none;
+}
+
+.copy-button {
+  padding: 0.22rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-soft);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.copy-button:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
+/* --------------------------------------------------------------------------
+   9. CHARTS
+   -------------------------------------------------------------------------- */
+.chart {
+  position: relative; /* anchor for the D3 tooltip */
+  width: 100%;
+  min-height: 120px; /* reserves space before the library loads */
+  touch-action: pan-y; /* keep vertical page scrolling working on touch */
+}
+
+.chart__svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.chart__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.chart__error {
+  margin: 0;
+  padding: 1rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Axis and grid lines, themed from CSS variables so they need no JS. */
+.chart .domain {
+  stroke: var(--border-strong);
+}
+
+.chart .tick line {
+  stroke: var(--border);
+}
+
+.chart .tick text {
+  fill: var(--text-soft);
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
+}
+
+.chart .axis-label {
+  fill: var(--text-soft);
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+}
+
+.chart .grid line {
+  stroke: var(--chart-grid);
+}
+
+.chart .grid path {
+  display: none;
+}
+
+/* Hover markers. */
+.chart .crosshair {
+  stroke: var(--border-strong);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.chart .hover-dot {
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.chart .curve {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: opacity 0.3s ease, stroke-opacity 0.3s ease;
+}
+
+/* Legend. Built as real buttons so it is keyboard accessible. */
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin-bottom: 0.6rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.3rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-soft);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color 0.18s ease, opacity 0.3s ease, background-color 0.18s ease;
+}
+
+.legend-item:hover {
+  color: var(--accent);
+  background-color: var(--accent-wash);
+}
+
+.legend-item__swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  flex: none;
+  background-color: var(--legend-color);
+  transition: opacity 0.3s ease;
+}
+
+.legend-item[aria-pressed='false'] {
+  opacity: 0.42;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* Tooltip. Positioned by JS with inline left/top. */
+.chart__tooltip {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  min-width: 8.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--bg);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  pointer-events: none; /* never intercept the pointer */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.chart__tooltip[data-visible='true'] {
+  opacity: 1;
+}
+
+.chart__tooltip-title {
+  margin-bottom: 0.25rem;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.chart__tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chart__tooltip-row[hidden] {
+  display: none;
+}
+
+.chart__tooltip-swatch {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+  flex: none;
+}
+
+.chart__tooltip-value {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+/* Plotly container. */
+.chart--plotly {
+  min-height: 320px;
+}
+
+.chart--plotly .plot-container,
+.chart--plotly .svg-container {
+  width: 100% !important;
+}
+
+/* --------------------------------------------------------------------------
+   10. MOTION
+   A short fade on load, and smooth anchor scrolling. Both are disabled when
+   the OS asks for reduced motion.
+   -------------------------------------------------------------------------- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+main {
+  animation: fade-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  main {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11. SHIKI DUAL THEMES
+
+   astro.config.mjs sets `defaultColor: false` and two Shiki themes, so every
+   token is exposed as a `--shiki-light-*` / `--shiki-dark-*` CSS variable.
+   These two rules are all it takes to switch.
+   -------------------------------------------------------------------------- */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+
+[data-theme='dark'] .astro-code,
+[data-theme='dark'] .astro-code span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
+}
+
+/* --------------------------------------------------------------------------
+   SMALL SCREENS
+   -------------------------------------------------------------------------- */
+@media (max-width: 560px) {
+  :root {
+    --text-base: 1rem;
+  }
+
+  .site-header {
+    padding-block: 1.5rem 0.9rem;
+  }
+
+  /* Date moves under the title so long titles keep their full width. */
+  .post-list__item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+  }
+
+  .fig__body {
+    padding: 0.7rem;
+  }
+
+  .toc {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .cite__head {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}

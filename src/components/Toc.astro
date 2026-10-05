@@ -1,0 +1,37 @@
+---
+/**
+ * Table of contents built from Astro's heading outline.
+ *
+ * `headings` comes from `render(post)` and is already ordered, already has
+ * slugs, and already accounts for Astro's duplicate-heading handling. We only
+ * keep levels 2 and 3: deeper nesting is noise in a short post.
+ */
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+
+const wanted = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  wanted.length >= 3 && (
+    <nav class="toc" aria-labelledby="toc-title">
+      <p class="toc__title" id="toc-title">
+        Contents
+      </p>
+      <ul class="toc__list">
+        {wanted.map((h) => (
+          <li>
+            <a class="toc__link" href={`#${h.slug}`}>
+              {h.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

@@ -1,0 +1,76 @@
+---
+/**
+ * Homepage: intro, the "Writing" list, links, and nothing else.
+ *
+ * Everything here is driven by src/consts.ts and the `blog` content
+ * collection, so adding a post automatically adds it to this page.
+ */
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ACTIVE_SOCIAL_LINKS, RSS_PATH, SITE } from '../consts';
+import { formatMonthYear } from '../lib/dates';
+import { withBase } from '../lib/urls';
+
+// Pull every post, drop drafts, and sort newest first.
+//
+// The sort is not optional: Astro explicitly does not guarantee the order that
+// getCollection() returns, so without this the list order would change
+// between builds.
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+---
+
+<BaseLayout>
+  <div class="wrap">
+    <section class="intro">
+      <h1 class="intro__title">{SITE.title}</h1>
+      <p class="intro__lede">{SITE.description}</p>
+    </section>
+
+    <section class="section" aria-labelledby="writing-heading">
+      <h2 class="section__title" id="writing-heading">Writing</h2>
+
+      {
+        posts.length === 0 ? (
+          <p class="post-list__empty">
+            No posts yet. Add a Markdown file to <code>src/content/blog/</code> to
+            get started.
+          </p>
+        ) : (
+          <ul class="post-list">
+            {posts.map((post) => (
+              <li class="post-list__item">
+                <a class="post-list__link" href={withBase(`/blog/${post.id}/`)}>
+                  {post.data.title}
+                </a>
+                <time
+                  class="post-list__meta"
+                  datetime={post.data.date.toISOString().slice(0, 10)}
+                >
+                  {formatMonthYear(post.data.date)}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
+
+    <section class="section" aria-labelledby="elsewhere-heading">
+      <h2 class="section__title" id="elsewhere-heading">Elsewhere</h2>
+      <ul class="link-row">
+        {ACTIVE_SOCIAL_LINKS.map((link) => (
+          <li>
+            <a class="link-row__link" href={link.href} rel="me noopener">
+              {link.label}
+            </a>
+          </li>
+        ))}
+        <li>
+          <a class="link-row__link" href={withBase(RSS_PATH)}>RSS</a>
+        </li>
+      </ul>
+    </section>
+  </div>
+</BaseLayout>

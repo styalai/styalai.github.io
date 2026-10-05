@@ -1,0 +1,70 @@
+---
+/**
+ * Blog post layout.
+ *
+ * Wraps BaseLayout and adds everything a post needs around its body:
+ * title, date, reading time, tags, an optional table of contents, and the
+ * citation block. The post body itself arrives through <slot> as already
+ * rendered HTML (Astro's <Content /> component).
+ */
+import BaseLayout from './BaseLayout.astro';
+import Toc from '../components/Toc.astro';
+import CiteThis from '../components/CiteThis.astro';
+import { SITE } from '../consts';
+import { formatDate, isoDate } from '../lib/dates';
+import { estimateReadingTime } from '../lib/readingTime';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  /** Heading outline from Astro's render(). Used to build the TOC. */
+  headings: import('astro').MarkdownHeading[];
+}
+
+const { post, headings } = Astro.props;
+const { data, body } = post;
+const author = data.author ?? SITE.author;
+
+// Only show the table of contents for posts substantial enough to need one.
+// Two headings is too few to be worth the box.
+const showToc = headings.filter((h) => h.depth >= 2 && h.depth <= 3).length >= 3;
+---
+
+<BaseLayout
+  title={data.title}
+  description={data.description}
+  type="article"
+  publishedTime={data.date}
+>
+  <article class="wrap">
+    <header class="post-header">
+      <h1 class="post-header__title">{data.title}</h1>
+      <div class="post-header__meta">
+        <time datetime={isoDate(data.date)}>{formatDate(data.date)}</time>
+        <span class="dot" aria-hidden="true">&middot;</span>
+        <span>{estimateReadingTime(body)}</span>
+        {data.updatedDate && (
+          <>
+            <span class="dot" aria-hidden="true">&middot;</span>
+            <span>Updated {formatDate(data.updatedDate)}</span>
+          </>
+        )}
+        {data.tags.length > 0 && <span class="dot" aria-hidden="true">&middot;</span>}
+        {data.tags.length > 0 && (
+          <ul class="tags">
+            {data.tags.map((tag) => <li class="tag">{tag}</li>)}
+          </ul>
+        )}
+      </div>
+    </header>
+
+    {showToc && <Toc headings={headings} />}
+
+    {/* Rendered Markdown/MDX body. `prose` carries the typographic styles. */}
+    <div class="prose">
+      <slot />
+    </div>
+
+    <CiteThis post={post} author={author} />
+  </article>
+</BaseLayout>

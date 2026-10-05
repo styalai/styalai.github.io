@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Site icon">
+  <!--
+    A minimal monogram. Kept as a hand-written SVG rather than a generated
+    multi-colour icon so it stays crisp at 16px and needs no extra tooling.
+    Uses currentColor-adjacent brand blue; the browser renders it fine on both
+    themes because favicons are drawn on an opaque tab background.
+  -->
+  <rect width="32" height="32" rx="7" fill="#2563eb" />
+  <path
+    d="M9 23V9h3.1l7.8 9.6V9H23v14h-3.05l-7.85-9.65V23z"
+    fill="#ffffff"
+  />
+</svg>

@@ -1,0 +1,20 @@
+---
+/** Site-wide header: name on the left, theme toggle on the right. */
+import { SITE } from '../consts';
+import ThemeToggle from './ThemeToggle.astro';
+import { withBase } from '../lib/urls';
+
+// On the homepage the <h1> is already the site name, so showing it in the
+// header as well just says it twice. Everywhere else -- post pages, the 404 --
+// the header name is the only thing identifying the site, so it stays.
+const isHome = Astro.url.pathname === withBase('/');
+---
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    {isHome ? <span class="visually-hidden">{SITE.title}</span> : (
+      <a class="site-header__name" href={withBase('/')}>{SITE.title}</a>
+    )}
+    <ThemeToggle />
+  </div>
+</header>

@@ -1,0 +1,28 @@
+---
+/**
+ * Figure 2 -- the Plotly final-loss chart.
+ *
+ * Same lazy-loading mechanism as D3LossCurves.astro: the container carries a
+ * `data-chart` attribute and the Plotly bundle (~1.1 MB gzipped) is fetched
+ * only when this figure scrolls into view.
+ */
+import Figure from '../Figure.astro';
+
+interface Props {
+  /** 1-based figure number for the caption. */
+  n: number;
+  caption: string;
+}
+
+const { n, caption } = Astro.props;
+---
+
+<Figure n={n} caption={caption} flush>
+  <div class="chart chart--plotly" data-chart="plotly-final-loss">
+    <div class="chart__placeholder">Loading interactive chart…</div>
+  </div>
+</Figure>
+
+<script>
+  import '../../scripts/lazy-charts';
+</script>

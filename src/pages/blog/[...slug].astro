@@ -1,0 +1,31 @@
+---
+/**
+ * One page per post in the `blog` collection.
+ *
+ * getStaticPaths() runs once at build time and tells Astro exactly which pages
+ * to emit. The file name of the post becomes the URL: a post at
+ * src/content/blog/first-experiment.mdx is served at /blog/first-experiment/.
+ */
+import { getCollection, render } from 'astro:content';
+import BlogPost from '../../layouts/BlogPost.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+
+  return posts.map((post) => ({
+    // Must match the folder name for the `[...slug]` route parameter.
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+
+// `render()` compiles the Markdown/MDX and hands back the component that
+// outputs it, plus the heading outline the table of contents is built from.
+const { Content, headings } = await render(post);
+---
+
+<BlogPost post={post} headings={headings}>
+  <Content />
+</BlogPost>
